@@ -111,7 +111,7 @@ for gen in range(generations):
     scored.sort(key=lambda x: x[1], reverse=True)
 
     best, best_score = scored[0]
-    print(f"Gen {gen}: Best Fitness = {best_score:.4f}")
+    print(f"Generation {gen}: Beste Fitness = {best_score:.4f}")
 
     survivors = [ind for ind, _ in scored[:10]]
 
@@ -135,12 +135,12 @@ for gen in range(generations):
 best_model = best
 test_preds = best_model.predict(X_test)
 
-print("\nTest Accuracy:", accuracy_score(y_test, test_preds))
+print("\nTestgenauigkeit:", accuracy_score(y_test, test_preds))
 
 print("\nGefundene Regeln:")
 for i, rule in enumerate(best_model.rules):
-    print(f"Rule {i+1}:")
+    print(f"Regel {i+1}:")
     for cond in rule.conditions:
         f, op, t = cond
-        print(f"  Feature[{f}] {op} {t:.3f}")
-    print(f"  THEN class = {rule.label}")
+        print(f"  Merkmal[{f}] {op} {t:.3f}")
+    print(f"  DANN Klasse = {rule.label}")
