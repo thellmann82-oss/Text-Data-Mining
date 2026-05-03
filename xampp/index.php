@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Genetischer Aktienklassifikator</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --blue:   #2563eb;
+    --green:  #16a34a;
+    --red:    #dc2626;
+    --purple: #7c3aed;
+    --bg:     #f0f4f8;
+    --border: #e2e8f0;
+    --text:   #1e293b;
+    --muted:  #64748b;
+  }
+
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; }
+
+  .navbar-hero {
+    background: linear-gradient(135deg, #0f0c29 0%, #302b63 55%, #24243e 100%);
+    padding: 14px 0;
+  }
+  .navbar-hero .brand { font-size: 1.2rem; font-weight: 700; color: #fff; letter-spacing: -.02em; }
+  .navbar-hero .sub   { font-size: .8rem; color: rgba(255,255,255,.45); }
+
+  .step-wrap  { display: flex; align-items: center; }
+  .step-dot   { width: 32px; height: 32px; border-radius: 50%; font-size: .8rem; font-weight: 700;
+                display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+                transition: background .3s, color .3s; }
+  .step-dot.idle   { background: #e2e8f0; color: #94a3b8; }
+  .step-dot.active { background: var(--blue);  color: #fff; }
+  .step-dot.done   { background: var(--green); color: #fff; }
+  .step-label { font-size: .75rem; font-weight: 600; margin-left: 6px; transition: color .3s; }
+  .step-label.idle   { color: var(--muted); }
+  .step-label.active { color: var(--blue);  }
+  .step-label.done   { color: var(--green); }
+  .step-line { flex: 1; height: 2px; background: #e2e8f0; margin: 0 10px; transition: background .4s; }
+  .step-line.done { background: var(--green); }
+
+  .card { border: none; border-radius: 14px; box-shadow: 0 2px 14px rgba(0,0,0,.08); transition: opacity .3s; }
+  .card-header { background: transparent; border-bottom: 1px solid var(--border); padding: 14px 20px; }
+  .card-header h6 { font-size: .95rem; font-weight: 700; margin: 0; }
+  .card.disabled { opacity: .45; pointer-events: none; }
+
+  .chip { padding: 4px 13px; border-radius: 20px; border: 1.5px solid var(--border); background: #fff;
+          font-size: .78rem; font-weight: 600; cursor: pointer; transition: all .15s; user-select: none; }
+  .chip:hover  { border-color: var(--blue); color: var(--blue); }
+  .chip.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+
+  .stat-card  { background: #f8fafc; border-radius: 10px; padding: 12px 16px; border: 1px solid var(--border); }
+  .stat-label { font-size: .7rem; color: var(--muted); text-transform: uppercase; font-weight: 700; letter-spacing: .06em; }
+  .stat-value { font-size: 1.2rem; font-weight: 800; color: var(--text); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .acc-card   { border-radius: 12px; padding: 18px; text-align: center; border: 1px solid; }
+  .acc-value  { font-size: 2.4rem; font-weight: 900; line-height: 1.1; }
+  .acc-label  { font-size: .8rem; font-weight: 600; color: var(--muted); margin-top: 4px; }
+  .acc-blue   { background: #eff6ff; border-color: #bfdbfe; }
+  .acc-green  { background: #f0fdf4; border-color: #bbf7d0; }
+  .acc-purple { background: #fdf4ff; border-color: #e9d5ff; }
+
+  .rule-card  { background: #f8fafc; border-radius: 10px; border: 1px solid var(--border); padding: 12px 16px; margin-bottom: 8px; }
+  .rule-num   { width: 26px; height: 26px; background: var(--blue); color: #fff; border-radius: 50%;
+                display: inline-flex; align-items: center; justify-content: center; font-size: .75rem; font-weight: 700; flex-shrink: 0; }
+  .cond-badge { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; border-radius: 6px;
+                padding: 2px 8px; font-size: .78rem; font-family: monospace; white-space: nowrap; }
+  .cls-up     { background: #dcfce7; color: #166534; border: 1px solid #86efac; border-radius: 6px; padding: 3px 10px; font-weight: 700; font-size: .82rem; }
+  .cls-down   { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; border-radius: 6px; padding: 3px 10px; font-weight: 700; font-size: .82rem; }
+
+  .pred-banner      { border-radius: 14px; padding: 18px 28px; font-size: 1.4rem; font-weight: 900; display: inline-block; }
+  .pred-banner.up   { background: #dcfce7; color: #166534; border: 2px solid #86efac; }
+  .pred-banner.dn   { background: #fee2e2; color: #991b1b; border: 2px solid #fca5a5; }
+
+  .progress    { border-radius: 999px; }
+  .progress-bar{ border-radius: 999px; }
+  input[type=range] { accent-color: var(--blue); }
+  .signal-up   { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--green); }
+  .signal-down { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--red); }
+
+  @media (max-width: 576px) {
+    .step-label { display: none; }
+    .acc-value  { font-size: 1.8rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar-hero mb-4">
+  <div class="container d-flex align-items-center justify-content-between">
+    <div>
+      <div class="brand"><i class="fas fa-dna me-2"></i>Genetischer Aktienklassifikator</div>
+      <div class="sub">Evolutionäre KI &bull; Echtzeit-Marktdaten &bull; Interpretierbare Regeln</div>
+    </div>
+    <i class="fas fa-chart-line fa-2x" style="color:rgba(255,255,255,.2)"></i>
+  </div>
+</nav>
+
+<div class="container pb-5" style="max-width:860px;">
+
+  <!-- Schritt-Indikator -->
+  <div class="step-wrap mb-4 px-1">
+    <div class="step-dot active" id="sd1">1</div>
+    <span class="step-label active" id="sl1">Aktie</span>
+    <div class="step-line" id="ln1"></div>
+    <div class="step-dot idle"   id="sd2">2</div>
+    <span class="step-label idle"   id="sl2">Training</span>
+    <div class="step-line" id="ln2"></div>
+    <div class="step-dot idle"   id="sd3">3</div>
+    <span class="step-label idle"   id="sl3">Ergebnisse</span>
+  </div>
+
+  <!-- ══ SCHRITT 1 ══ -->
+  <div class="card mb-4" id="card1">
+    <div class="card-header d-flex align-items-center gap-2">
+      <div class="step-dot active" style="width:22px;height:22px;font-size:.72rem;">1</div>
+      <h6>Aktie auswählen &amp; Daten laden</h6>
+    </div>
+    <div class="card-body">
+
+      <div class="mb-3">
+        <label class="form-label small text-muted fw-semibold mb-1">Beliebte Aktien</label>
+        <div class="d-flex flex-wrap gap-2" id="chipContainer"></div>
+      </div>
+
+      <div class="row g-3 align-items-end">
+        <div class="col-sm-5">
+          <label class="form-label small fw-semibold">Ticker-Symbol</label>
+          <input id="tickerInput" type="text" class="form-control" value="AAPL"
+                 placeholder="z.B. AAPL, MSFT, SAP.DE"
+                 onkeydown="if(event.key==='Enter') fetchStock()">
+        </div>
+        <div class="col-sm-4">
+          <label class="form-label small fw-semibold">Zeitraum</label>
+          <select id="periodSelect" class="form-select">
+            <option value="3mo">3 Monate</option>
+            <option value="6mo">6 Monate</option>
+            <option value="1y" selected>1 Jahr</option>
+            <option value="2y">2 Jahre</option>
+            <option value="5y">5 Jahre</option>
+          </select>
+        </div>
+        <div class="col-sm-3">
+          <button id="fetchBtn" class="btn btn-primary w-100" onclick="fetchStock()">
+            <i class="fas fa-download me-1"></i> Laden
+          </button>
+        </div>
+      </div>
+
+      <div id="fetchErr" class="alert alert-danger mt-3 d-none"></div>
+      <div id="fetchSpinner" class="text-center py-4 d-none">
+        <div class="spinner-border spinner-border-sm text-primary me-2"></div>
+        <span class="text-muted">Marktdaten werden abgerufen…</span>
+      </div>
+
+      <div id="stockPanel" class="d-none">
+        <hr class="my-3">
+        <div class="row g-2 mb-3">
+          <div class="col-6 col-md-3"><div class="stat-card"><div class="stat-label">Unternehmen</div><div class="stat-value" id="iName" style="font-size:.9rem">–</div></div></div>
+          <div class="col-6 col-md-3"><div class="stat-card"><div class="stat-label">Handelstage</div><div class="stat-value" id="iSamples">–</div></div></div>
+          <div class="col-6 col-md-3"><div class="stat-card"><div class="stat-label">Steigtage</div><div class="stat-value" id="iUpRatio">–</div></div></div>
+          <div class="col-6 col-md-3"><div class="stat-card"><div class="stat-label">Währung</div><div class="stat-value" id="iCurrency">–</div></div></div>
+        </div>
+        <canvas id="priceChart" height="85"></canvas>
+        <div class="text-end mt-3">
+          <button class="btn btn-success" onclick="activateStep2()">
+            Weiter zum Training <i class="fas fa-arrow-right ms-1"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SCHRITT 2 ══ -->
+  <div class="card mb-4 disabled" id="card2">
+    <div class="card-header d-flex align-items-center gap-2">
+      <div class="step-dot idle" style="width:22px;height:22px;font-size:.72rem;" id="sd2sm">2</div>
+      <h6>Algorithmus konfigurieren &amp; trainieren</h6>
+    </div>
+    <div class="card-body">
+
+      <div class="row g-4 mb-4">
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold">
+            Generationen: <span id="genVal" class="text-primary fw-bold">30</span>
+          </label>
+          <input type="range" class="form-range" id="genSlider" min="10" max="100" value="30" step="5"
+                 oninput="genVal.textContent=this.value">
+          <div class="d-flex justify-content-between" style="font-size:.72rem;color:var(--muted);margin-top:2px;">
+            <span>10 – schnell</span><span>100 – präzise</span>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold">
+            Populationsgröße: <span id="popVal" class="text-primary fw-bold">50</span>
+          </label>
+          <input type="range" class="form-range" id="popSlider" min="20" max="200" value="50" step="10"
+                 oninput="popVal.textContent=this.value">
+          <div class="d-flex justify-content-between" style="font-size:.72rem;color:var(--muted);margin-top:2px;">
+            <span>20 – leicht</span><span>200 – intensiv</span>
+          </div>
+        </div>
+      </div>
+
+      <button id="trainBtn" class="btn btn-primary w-100 py-2" onclick="trainModel()">
+        <i class="fas fa-play me-2"></i>Training starten
+      </button>
+
+      <div id="trainErr" class="alert alert-danger mt-3 d-none"></div>
+
+      <div id="trainProgress" class="d-none mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <span class="small fw-semibold">Evolutionsfortschritt</span>
+          <span id="progText" class="small" style="color:var(--muted);">Generation 0 / 0</span>
+        </div>
+        <div class="progress mb-3" style="height:10px;">
+          <div id="progBar" class="progress-bar progress-bar-striped progress-bar-animated bg-primary" style="width:0%"></div>
+        </div>
+        <div class="d-flex justify-content-between small mb-1">
+          <span style="color:var(--muted);">Beste Fitness</span>
+          <span id="fitnessVal" class="fw-bold text-primary">–</span>
+        </div>
+        <canvas id="fitnessChart" height="70"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SCHRITT 3 ══ -->
+  <div class="card mb-4 disabled" id="card3">
+    <div class="card-header d-flex align-items-center gap-2">
+      <div class="step-dot idle" style="width:22px;height:22px;font-size:.72rem;" id="sd3sm">3</div>
+      <h6>Ergebnisse &amp; Vorhersage</h6>
+    </div>
+    <div class="card-body">
+
+      <div class="row g-3 mb-4">
+        <div class="col-md-4">
+          <div class="acc-card acc-blue">
+            <div class="acc-value text-primary" id="trainAcc">–</div>
+            <div class="acc-label">Trainingsgenauigkeit</div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="acc-card acc-green">
+            <div class="acc-value text-success" id="testAcc">–</div>
+            <div class="acc-label">Testgenauigkeit</div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="acc-card acc-purple">
+            <div class="acc-value" style="color:var(--purple)" id="nRules">–</div>
+            <div class="acc-label">Entscheidungsregeln</div>
+          </div>
+        </div>
+      </div>
+
+      <h6 class="fw-bold mb-2">
+        <i class="fas fa-list-ol me-2 text-primary"></i>Gefundene Entscheidungsregeln
+      </h6>
+      <div id="rulesContainer" class="mb-4"></div>
+
+      <h6 class="fw-bold mb-2">
+        <i class="fas fa-bullseye me-2" style="color:#f59e0b;"></i>Vorhersage für den nächsten Handelstag
+      </h6>
+      <button class="btn btn-outline-primary mb-3" id="predBtn" onclick="zeigVorhersage()">
+        <i class="fas fa-bolt me-1"></i>Vorhersage anzeigen
+      </button>
+
+      <div id="predPanel" class="d-none">
+        <div class="text-center mb-3">
+          <div id="predBanner" class="pred-banner"></div>
+          <div class="small mt-2" style="color:var(--muted);">Vorhersage basierend auf den letzten 30 Handelstagen</div>
+        </div>
+        <canvas id="predChart" height="90"></canvas>
+        <div class="d-flex justify-content-center gap-4 mt-2 small" style="color:var(--muted);">
+          <span><span class="signal-up me-1"></span>Kurs steigt (Vorhersage)</span>
+          <span><span class="signal-down me-1"></span>Kurs fällt (Vorhersage)</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ── Beliebte Aktien ── */
+const POPULAR = [
+  {sym:'AAPL', name:'Apple'},      {sym:'MSFT',  name:'Microsoft'},
+  {sym:'GOOGL',name:'Alphabet'},   {sym:'AMZN',  name:'Amazon'},
+  {sym:'NVDA', name:'Nvidia'},     {sym:'TSLA',  name:'Tesla'},
+  {sym:'META', name:'Meta'},       {sym:'SAP.DE',name:'SAP'},
+  {sym:'ASML', name:'ASML'},       {sym:'BNTX',  name:'BioNTech'},
+];
+
+/* ── State ── */
+let priceChart   = null;
+let fitnessChart = null;
+let predChart    = null;
+let cachedPred   = null;   // Vorhersagedaten aus dem Trainingsergebnis
+
+/* ── Chips aufbauen ── */
+(function () {
+  const wrap = document.getElementById('chipContainer');
+  POPULAR.forEach(s => {
+    const btn = document.createElement('button');
+    btn.type      = 'button';
+    btn.className = 'chip' + (s.sym === 'AAPL' ? ' active' : '');
+    btn.textContent = s.sym;
+    btn.title     = s.name;
+    btn.onclick   = () => {
+      document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('tickerInput').value = s.sym;
+    };
+    wrap.appendChild(btn);
+  });
+})();
+
+document.getElementById('tickerInput').addEventListener('input', function () {
+  const v = this.value.toUpperCase();
+  document.querySelectorAll('.chip').forEach(c =>
+    c.classList.toggle('active', c.textContent === v)
+  );
+});
+
+/* ══ SCHRITT 1: Aktie laden ══ */
+async function fetchStock() {
+  const ticker = document.getElementById('tickerInput').value.trim().toUpperCase();
+  const period = document.getElementById('periodSelect').value;
+  if (!ticker) return;
+
+  hide('fetchErr');
+  hide('stockPanel');
+  show('fetchSpinner');
+  setBtn('fetchBtn', '<i class="fas fa-spinner fa-spin me-1"></i> Laden…', true);
+
+  try {
+    const res  = await fetch(`api/stock.php?ticker=${encodeURIComponent(ticker)}&period=${period}`);
+    const data = await res.json();
+    if (!res.ok || data.fehler) { showErr('fetchErr', data.fehler || 'Unbekannter Fehler'); return; }
+    renderStock(data);
+  } catch (e) {
+    showErr('fetchErr', 'Netzwerkfehler: ' + e.message);
+  } finally {
+    hide('fetchSpinner');
+    setBtn('fetchBtn', '<i class="fas fa-download me-1"></i> Laden', false);
+  }
+}
+
+function renderStock(d) {
+  document.getElementById('iName').textContent     = d.name     || d.ticker;
+  document.getElementById('iSamples').textContent  = d.anzahl;
+  document.getElementById('iUpRatio').textContent  = d.up_anteil + ' %';
+  document.getElementById('iCurrency').textContent = d.currency  || '–';
+
+  if (priceChart) priceChart.destroy();
+  const ctx  = document.getElementById('priceChart').getContext('2d');
+  const grad = ctx.createLinearGradient(0, 0, 0, 280);
+  grad.addColorStop(0, 'rgba(37,99,235,0.25)');
+  grad.addColorStop(1, 'rgba(37,99,235,0)');
+
+  priceChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels:   d.daten,
+      datasets: [{
+        label:           `${d.ticker} (${d.currency})`,
+        data:            d.kurse,
+        borderColor:     '#2563eb',
+        backgroundColor: grad,
+        borderWidth:     2,
+        pointRadius:     0,
+        fill:            true,
+        tension:         0.3,
+      }]
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend:  { display: false },
+        tooltip: { callbacks: { label: c => ` ${d.ticker}: ${c.raw.toFixed(2)} ${d.currency}` } }
+      },
+      scales: {
+        x: { ticks: { maxTicksLimit: 7, font: { size: 11 } }, grid: { display: false } },
+        y: { ticks: { font: { size: 11 } }, grid: { color: 'rgba(0,0,0,0.05)' } }
+      }
+    }
+  });
+
+  show('stockPanel');
+}
+
+/* ── Schritt-Übergänge ── */
+function activateStep2() {
+  markDone(1); markActive(2);
+  document.getElementById('ln1').classList.add('done');
+  document.getElementById('card2').classList.remove('disabled');
+  document.getElementById('card2').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function activateStep3() {
+  markDone(2); markActive(3);
+  document.getElementById('ln2').classList.add('done');
+  document.getElementById('card3').classList.remove('disabled');
+  document.getElementById('card3').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function markDone(n)   { setStepState(n, 'done');   }
+function markActive(n) { setStepState(n, 'active'); }
+
+function setStepState(n, state) {
+  ['sd' + n, 'sd' + n + 'sm'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.className = el.className.replace(/\b(idle|active|done)\b/g, state);
+  });
+  const lbl = document.getElementById('sl' + n);
+  if (lbl) lbl.className = 'step-label ' + state;
+}
+
+/* ══ SCHRITT 2: Training ══ */
+function trainModel() {
+  const ticker      = document.getElementById('tickerInput').value.trim().toUpperCase();
+  const period      = document.getElementById('periodSelect').value;
+  const generations = parseInt(document.getElementById('genSlider').value);
+  const population  = parseInt(document.getElementById('popSlider').value);
+
+  hide('trainErr');
+  show('trainProgress');
+  setBtn('trainBtn', '<i class="fas fa-dna fa-spin me-2"></i>Evolution läuft…', true);
+
+  // Fitness-Chart vorbereiten
+  if (fitnessChart) fitnessChart.destroy();
+  const fCtx = document.getElementById('fitnessChart').getContext('2d');
+  fitnessChart = new Chart(fCtx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [{
+        data:            [],
+        borderColor:     '#2563eb',
+        backgroundColor: 'rgba(37,99,235,0.1)',
+        borderWidth:     2,
+        pointRadius:     0,
+        fill:            true,
+        tension:         0.4,
+      }]
+    },
+    options: {
+      responsive: true,
+      animation:  false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { maxTicksLimit: 8, font: { size: 10 } }, grid: { display: false } },
+        y: {
+          ticks: { font: { size: 10 }, callback: v => (v * 100).toFixed(1) + '%' },
+          grid:  { color: 'rgba(0,0,0,0.05)' }
+        }
+      }
+    }
+  });
+
+  // SSE-Stream öffnen (GET-Parameter)
+  const params = new URLSearchParams({ ticker, period, generations, population });
+  const es     = new EventSource(`api/train.php?${params}`);
+
+  es.onmessage = (e) => {
+    const d = JSON.parse(e.data);
+
+    if (d.fehler) {
+      es.close();
+      showErr('trainErr', d.fehler);
+      setBtn('trainBtn', '<i class="fas fa-play me-2"></i>Training starten', false);
+      return;
+    }
+
+    // Lade-Status vor dem Training
+    if (d.status === 'laden') return;
+
+    // Fortschritts-Event
+    if (!d.fertig) {
+      setProgress(d.gen, d.total, d.score);
+      fitnessChart.data.labels.push(d.gen);
+      fitnessChart.data.datasets[0].data.push(d.score);
+      fitnessChart.update();
+      return;
+    }
+
+    // Abschluss
+    es.close();
+    setProgress(d.fitness_verlauf.length, generations,
+                d.fitness_verlauf[d.fitness_verlauf.length - 1]);
+    document.getElementById('progBar').className = 'progress-bar bg-success';
+    document.getElementById('progBar').style.width = '100%';
+    setBtn('trainBtn', '<i class="fas fa-redo me-2"></i>Erneut trainieren', false);
+
+    cachedPred = d;
+    showResults(d);
+  };
+
+  es.onerror = () => {
+    es.close();
+    showErr('trainErr', 'Verbindung unterbrochen. Bitte erneut versuchen.');
+    setBtn('trainBtn', '<i class="fas fa-play me-2"></i>Training starten', false);
+  };
+}
+
+function setProgress(gen, total, score) {
+  const pct = total > 0 ? Math.round((gen / total) * 100) : 0;
+  document.getElementById('progBar').style.width  = pct + '%';
+  document.getElementById('progText').textContent = `Generation ${gen} / ${total}`;
+  document.getElementById('fitnessVal').textContent =
+    score !== undefined ? (score * 100).toFixed(2) + '%' : '–';
+}
+
+/* ══ SCHRITT 3: Ergebnisse ══ */
+function showResults(d) {
+  document.getElementById('trainAcc').textContent = pct(d.train_genauigkeit);
+  document.getElementById('testAcc').textContent  = pct(d.test_genauigkeit);
+  document.getElementById('nRules').textContent   = d.anzahl_regeln;
+
+  const wrap = document.getElementById('rulesContainer');
+  wrap.innerHTML = '';
+  if (!d.regeln || d.regeln.length === 0) {
+    wrap.innerHTML = '<p class="text-muted small">Keine Regeln gefunden.</p>';
+  } else {
+    d.regeln.forEach((rule, i) => {
+      const up  = rule.klasse === 1;
+      const div = document.createElement('div');
+      div.className = 'rule-card d-flex align-items-start gap-3';
+      div.innerHTML = `
+        <div class="rule-num mt-1">${i + 1}</div>
+        <div class="flex-grow-1">
+          <div class="d-flex flex-wrap gap-1 mb-2">
+            ${rule.bedingungen.map(c =>
+              `<span class="cond-badge">${c.merkmal} ${c.operator} ${c.schwellwert}</span>`
+            ).join('')}
+          </div>
+          <span class="${up ? 'cls-up' : 'cls-down'}">DANN: ${rule.klasse_text}</span>
+        </div>`;
+      wrap.appendChild(div);
+    });
+  }
+
+  activateStep3();
+}
+
+/* ── Vorhersage anzeigen (Daten kommen aus Trainingsresultat) ── */
+function zeigVorhersage() {
+  if (!cachedPred) return;
+  const d    = cachedPred;
+  const up   = d.letzte_vorhersage === 1;
+  const banner = document.getElementById('predBanner');
+  banner.className = `pred-banner ${up ? 'up' : 'dn'}`;
+  banner.innerHTML = `<i class="fas fa-arrow-trend-${up ? 'up' : 'down'} me-2"></i>${d.letzte_vorhersage_text}`;
+
+  if (predChart) predChart.destroy();
+  const ctx        = document.getElementById('predChart').getContext('2d');
+  const ptColors   = d.vorhersagen.map(p => p === 1 ? '#16a34a' : '#dc2626');
+
+  predChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels:   d.daten_pred,
+      datasets: [{
+        label:                'Kurs',
+        data:                 d.kurse_pred,
+        borderColor:          '#475569',
+        borderWidth:          1.5,
+        pointRadius:          5,
+        pointBackgroundColor: ptColors,
+        pointBorderColor:     ptColors,
+        fill:                 false,
+        tension:              0.2,
+      }]
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            afterLabel: c => {
+              const p = d.vorhersagen[c.dataIndex];
+              return p === 1 ? '↑ Vorhersage: Steigt' : '↓ Vorhersage: Fällt';
+            }
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { maxTicksLimit: 6, font: { size: 11 } }, grid: { display: false } },
+        y: { ticks: { font: { size: 11 } }, grid: { color: 'rgba(0,0,0,0.05)' } }
+      }
+    }
+  });
+
+  show('predPanel');
+  document.getElementById('predBtn').style.display = 'none';
+}
+
+/* ── Hilfsfunktionen ── */
+function pct(v)                 { return (v * 100).toFixed(1) + ' %'; }
+function show(id)               { document.getElementById(id).classList.remove('d-none'); }
+function hide(id)               { document.getElementById(id).classList.add('d-none'); }
+function showErr(id, msg)       { const e = document.getElementById(id); e.textContent = '⚠ ' + msg; e.classList.remove('d-none'); }
+function setBtn(id, html, dis)  { const b = document.getElementById(id); b.innerHTML = html; b.disabled = dis; }
+</script>
+</body>
+</html>
