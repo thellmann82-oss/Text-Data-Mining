@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vorschau – Genetischer Aktienklassifikator</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root{--blue:#2563eb;--green:#16a34a;--red:#dc2626;--purple:#7c3aed;--bg:#f0f4f8;--border:#e2e8f0;--text:#1e293b;--muted:#64748b}
+  body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif}
+  .navbar-hero{background:linear-gradient(135deg,#0f0c29 0%,#302b63 55%,#24243e 100%);padding:14px 0}
+  .navbar-hero .brand{font-size:1.2rem;font-weight:700;color:#fff;letter-spacing:-.02em}
+  .navbar-hero .sub{font-size:.8rem;color:rgba(255,255,255,.45)}
+  .step-wrap{display:flex;align-items:center}
+  .step-dot{width:32px;height:32px;border-radius:50%;font-size:.8rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .step-dot.active{background:var(--blue);color:#fff}
+  .step-dot.done{background:var(--green);color:#fff}
+  .step-dot.idle{background:#e2e8f0;color:#94a3b8}
+  .step-label{font-size:.75rem;font-weight:600;margin-left:6px}
+  .step-label.active{color:var(--blue)}.step-label.done{color:var(--green)}.step-label.idle{color:var(--muted)}
+  .step-line{flex:1;height:2px;background:#e2e8f0;margin:0 10px}
+  .step-line.done{background:var(--green)}
+  .card{border:none;border-radius:14px;box-shadow:0 2px 14px rgba(0,0,0,.08)}
+  .card-header{background:transparent;border-bottom:1px solid var(--border);padding:14px 20px}
+  .card-header h6{font-size:.95rem;font-weight:700;margin:0}
+  .chip{padding:4px 13px;border-radius:20px;border:1.5px solid var(--border);background:#fff;font-size:.78rem;font-weight:600}
+  .chip.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+  .stat-card{background:#f8fafc;border-radius:10px;padding:12px 16px;border:1px solid var(--border)}
+  .stat-label{font-size:.7rem;color:var(--muted);text-transform:uppercase;font-weight:700;letter-spacing:.06em}
+  .stat-value{font-size:1.2rem;font-weight:800;color:var(--text);margin-top:2px}
+  .acc-card{border-radius:12px;padding:18px;text-align:center;border:1px solid}
+  .acc-value{font-size:2.4rem;font-weight:900;line-height:1.1}
+  .acc-label{font-size:.8rem;font-weight:600;color:var(--muted);margin-top:4px}
+  .acc-blue{background:#eff6ff;border-color:#bfdbfe}
+  .acc-green{background:#f0fdf4;border-color:#bbf7d0}
+  .acc-purple{background:#fdf4ff;border-color:#e9d5ff}
+  .rule-card{background:#f8fafc;border-radius:10px;border:1px solid var(--border);padding:12px 16px;margin-bottom:8px}
+  .rule-num{width:26px;height:26px;background:var(--blue);color:#fff;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;flex-shrink:0}
+  .cond-badge{background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;border-radius:6px;padding:2px 8px;font-size:.78rem;font-family:monospace;white-space:nowrap}
+  .cls-up{background:#dcfce7;color:#166534;border:1px solid #86efac;border-radius:6px;padding:3px 10px;font-weight:700;font-size:.82rem}
+  .cls-down{background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;border-radius:6px;padding:3px 10px;font-weight:700;font-size:.82rem}
+  .pred-banner{border-radius:14px;padding:18px 28px;font-size:1.4rem;font-weight:900;display:inline-block}
+  .pred-banner.up{background:#dcfce7;color:#166534;border:2px solid #86efac}
+  .progress{border-radius:999px}.progress-bar{border-radius:999px}
+  .signal-up{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--green)}
+  .signal-down{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--red)}
+  .demo-badge{background:#fef3c7;color:#92400e;border:1px solid #fcd34d;border-radius:6px;padding:2px 10px;font-size:.78rem;font-weight:700}
+</style>
+</head>
+<body>
+
+<nav class="navbar-hero mb-4">
+  <div class="container d-flex align-items-center justify-content-between">
+    <div>
+      <div class="brand"><i class="fas fa-dna me-2"></i>Genetischer Aktienklassifikator</div>
+      <div class="sub">Evolutionäre KI &bull; Echtzeit-Marktdaten &bull; Interpretierbare Regeln</div>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <span class="demo-badge"><i class="fas fa-eye me-1"></i>Vorschau</span>
+      <i class="fas fa-chart-line fa-2x" style="color:rgba(255,255,255,.2)"></i>
+    </div>
+  </div>
+</nav>
+
+<div class="container pb-5" style="max-width:860px">
+
+  <!-- Schritt-Indikator -->
+  <div class="step-wrap mb-4 px-1">
+    <div class="step-dot done">✓</div><span class="step-label done ms-2">Aktie</span>
+    <div class="step-line done"></div>
+    <div class="step-dot done">✓</div><span class="step-label done ms-2">Training</span>
+    <div class="step-line done"></div>
+    <div class="step-dot active">3</div><span class="step-label active ms-2">Ergebnisse</span>
+  </div>
+
+  <!-- ── SCHRITT 1 ── -->
+  <div class="card mb-4">
+    <div class="card-header d-flex align-items-center gap-2">
+      <div class="step-dot done" style="width:22px;height:22px;font-size:.72rem;">✓</div>
+      <h6>Aktie auswählen &amp; Daten laden</h6>
+    </div>
+    <div class="card-body">
+      <div class="mb-3">
+        <label class="form-label small text-muted fw-semibold mb-1">Beliebte Aktien</label>
+        <div class="d-flex flex-wrap gap-2">
+          <span class="chip active">AAPL</span>
+          <span class="chip">MSFT</span><span class="chip">GOOGL</span><span class="chip">AMZN</span>
+          <span class="chip">NVDA</span><span class="chip">TSLA</span><span class="chip">META</span>
+          <span class="chip">SAP.DE</span><span class="chip">ASML</span><span class="chip">BNTX</span>
+        </div>
+      </div>
+      <div class="row g-3 align-items-end">
+        <div class="col-sm-5">
+          <label class="form-label small fw-semibold">Ticker-Symbol</label>
+          <input type="text" class="form-control" value="AAPL" readonly>
+        </div>
+        <div class="col-sm-4">
+          <label class="form-label small fw-semibold">Zeitraum</label>
+          <select class="form-select"><option selected>1 Jahr</option></select>
+        </div>
+        <div class="col-sm-3">
+          <button class="btn btn-success w-100"><i class="fas fa-check me-1"></i>Geladen</button>
+        </div>
+      </div>
+      <hr class="my-3">
+      <div class="row g-2 mb-3">
+        <div class="col-6 col-md-3"><div class="stat-card"><div class="stat-label">Unternehmen</div><div class="stat-value" style="font-size:.95rem">Apple Inc.</div></div></div>
+        <div class="col-6 col-md-3"><div class="stat-card"><div class="stat-label">Handelstage</div><div class="stat-value">231</div></div></div>
+        <div class="col-6 col-md-3"><div class="stat-card"><div class="stat-label">Steigtage</div><div class="stat-value">54,1 %</div></div></div>
+        <div class="col-6 col-md-3"><div class="stat-card"><div class="stat-label">Sektor</div><div class="stat-value" style="font-size:.9rem">Technology</div></div></div>
+      </div>
+      <canvas id="priceChart" height="85"></canvas>
+    </div>
+  </div>
+
+  <!-- ── SCHRITT 2 ── -->
+  <div class="card mb-4">
+    <div class="card-header d-flex align-items-center gap-2">
+      <div class="step-dot done" style="width:22px;height:22px;font-size:.72rem;">✓</div>
+      <h6>Algorithmus konfigurieren &amp; trainieren</h6>
+    </div>
+    <div class="card-body">
+      <div class="row g-4 mb-4">
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold">Generationen: <span class="text-primary fw-bold">30</span></label>
+          <input type="range" class="form-range" value="30" min="10" max="100" step="5" disabled>
+          <div class="d-flex justify-content-between" style="font-size:.72rem;color:var(--muted)"><span>10 – schnell</span><span>100 – präzise</span></div>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold">Populationsgröße: <span class="text-primary fw-bold">50</span></label>
+          <input type="range" class="form-range" value="50" min="20" max="200" step="10" disabled>
+          <div class="d-flex justify-content-between" style="font-size:.72rem;color:var(--muted)"><span>20 – leicht</span><span>200 – intensiv</span></div>
+        </div>
+      </div>
+      <button class="btn btn-success w-100 py-2"><i class="fas fa-check me-2"></i>Training abgeschlossen</button>
+      <div class="mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <span class="small fw-semibold">Evolutionsfortschritt</span>
+          <span class="small" style="color:var(--muted)">Generation 30 / 30</span>
+        </div>
+        <div class="progress mb-3" style="height:10px">
+          <div class="progress-bar bg-success" style="width:100%"></div>
+        </div>
+        <div class="d-flex justify-content-between small mb-1">
+          <span style="color:var(--muted)">Beste Fitness</span>
+          <span class="fw-bold text-primary">71,30 %</span>
+        </div>
+        <canvas id="fitnessChart" height="70"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SCHRITT 3 ── -->
+  <div class="card mb-4">
+    <div class="card-header d-flex align-items-center gap-2">
+      <div class="step-dot active" style="width:22px;height:22px;font-size:.72rem;">3</div>
+      <h6>Ergebnisse &amp; Vorhersage</h6>
+    </div>
+    <div class="card-body">
+
+      <div class="row g-3 mb-4">
+        <div class="col-md-4"><div class="acc-card acc-blue"><div class="acc-value text-primary">74,7 %</div><div class="acc-label">Trainingsgenauigkeit</div></div></div>
+        <div class="col-md-4"><div class="acc-card acc-green"><div class="acc-value text-success">67,4 %</div><div class="acc-label">Testgenauigkeit</div></div></div>
+        <div class="col-md-4"><div class="acc-card acc-purple"><div class="acc-value" style="color:var(--purple)">4</div><div class="acc-label">Entscheidungsregeln</div></div></div>
+      </div>
+
+      <h6 class="fw-bold mb-2"><i class="fas fa-list-ol me-2 text-primary"></i>Gefundene Entscheidungsregeln</h6>
+
+      <div class="rule-card d-flex align-items-start gap-3">
+        <div class="rule-num mt-1">1</div>
+        <div class="flex-grow-1">
+          <div class="d-flex flex-wrap gap-1 mb-2">
+            <span class="cond-badge">MA5-Verhältnis &gt; 1.0182</span>
+            <span class="cond-badge">Tagesrendite &gt; 0.0043</span>
+          </div>
+          <span class="cls-up">DANN: Steigt ↑</span>
+        </div>
+      </div>
+
+      <div class="rule-card d-flex align-items-start gap-3">
+        <div class="rule-num mt-1">2</div>
+        <div class="flex-grow-1">
+          <div class="d-flex flex-wrap gap-1 mb-2">
+            <span class="cond-badge">Volumenänderung &lt; -0.0821</span>
+            <span class="cond-badge">Hoch-Tief-Spanne &lt; 0.0174</span>
+            <span class="cond-badge">MA20-Verhältnis &gt; 0.9934</span>
+          </div>
+          <span class="cls-down">DANN: Fällt ↓</span>
+        </div>
+      </div>
+
+      <div class="rule-card d-flex align-items-start gap-3">
+        <div class="rule-num mt-1">3</div>
+        <div class="flex-grow-1">
+          <div class="d-flex flex-wrap gap-1 mb-2">
+            <span class="cond-badge">Rendite (3T) &gt; 0.0215</span>
+            <span class="cond-badge">Oberer Docht &lt; 0.3102</span>
+          </div>
+          <span class="cls-up">DANN: Steigt ↑</span>
+        </div>
+      </div>
+
+      <div class="rule-card d-flex align-items-start gap-3">
+        <div class="rule-num mt-1">4</div>
+        <div class="flex-grow-1">
+          <div class="d-flex flex-wrap gap-1 mb-2">
+            <span class="cond-badge">MA10-Verhältnis &lt; 0.9876</span>
+          </div>
+          <span class="cls-down">DANN: Fällt ↓</span>
+        </div>
+      </div>
+
+      <h6 class="fw-bold mb-2 mt-4"><i class="fas fa-bullseye me-2" style="color:#f59e0b"></i>Vorhersage für den nächsten Handelstag</h6>
+      <div class="text-center mb-3">
+        <div class="pred-banner up"><i class="fas fa-arrow-trend-up me-2"></i>Steigt ↑</div>
+        <div class="small mt-2" style="color:var(--muted)">Vorhersage basierend auf den letzten 30 Handelstagen</div>
+      </div>
+      <canvas id="predChart" height="90"></canvas>
+      <div class="d-flex justify-content-center gap-4 mt-2 small" style="color:var(--muted)">
+        <span><span class="signal-up me-1"></span>Kurs steigt (Vorhersage)</span>
+        <span><span class="signal-down me-1"></span>Kurs fällt (Vorhersage)</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ── Kursdaten ── */
+function genPrice(n, start, vol) {
+  const p = [start];
+  for (let i = 1; i < n; i++) p.push(+(p[i-1] * (1 + (Math.random()-.48)*vol)).toFixed(2));
+  return p;
+}
+function genDates(n) {
+  const d = []; let cur = new Date('2024-05-01');
+  while (d.length < n) {
+    const day = cur.getDay();
+    if (day !== 0 && day !== 6) d.push(cur.toISOString().slice(0,10));
+    cur = new Date(cur.getTime() + 86400000);
+  }
+  return d;
+}
+
+const N = 231;
+const dates  = genDates(N);
+const prices = genPrice(N, 178, 0.012);
+
+/* ── Preischart ── */
+const ctx1 = document.getElementById('priceChart').getContext('2d');
+const grad = ctx1.createLinearGradient(0,0,0,280);
+grad.addColorStop(0,'rgba(37,99,235,0.25)');
+grad.addColorStop(1,'rgba(37,99,235,0)');
+new Chart(ctx1, {
+  type:'line',
+  data:{labels:dates,datasets:[{label:'AAPL (USD)',data:prices,borderColor:'#2563eb',backgroundColor:grad,borderWidth:2,pointRadius:0,fill:true,tension:.3}]},
+  options:{responsive:true,interaction:{mode:'index',intersect:false},plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` AAPL: ${c.raw.toFixed(2)} USD`}}},scales:{x:{ticks:{maxTicksLimit:7,font:{size:11}},grid:{display:false}},y:{ticks:{font:{size:11}},grid:{color:'rgba(0,0,0,0.05)'}}}}
+});
+
+/* ── Fitness-Verlauf ── */
+function genFitness(gens) {
+  const f = [0.52]; for(let i=1;i<gens;i++) f.push(Math.min(0.75,f[i-1]+(Math.random()*.04-.005)));
+  return f.map(v=>+v.toFixed(4));
+}
+const fitnessData = genFitness(30);
+new Chart(document.getElementById('fitnessChart').getContext('2d'),{
+  type:'line',
+  data:{labels:fitnessData.map((_,i)=>i+1),datasets:[{data:fitnessData,borderColor:'#2563eb',backgroundColor:'rgba(37,99,235,0.1)',borderWidth:2,pointRadius:0,fill:true,tension:.4}]},
+  options:{responsive:true,animation:false,plugins:{legend:{display:false}},scales:{x:{ticks:{maxTicksLimit:8,font:{size:10}},grid:{display:false}},y:{ticks:{font:{size:10},callback:v=>(v*100).toFixed(1)+'%'},grid:{color:'rgba(0,0,0,0.05)'}}}}
+});
+
+/* ── Vorhersage-Chart ── */
+const pred30 = [1,0,1,1,0,0,1,1,0,1,1,1,0,1,0,1,1,0,0,1,1,0,1,1,0,1,0,1,1,1];
+const price30 = genPrice(30, prices[prices.length-31], 0.013);
+const ptColors = pred30.map(p=>p===1?'#16a34a':'#dc2626');
+new Chart(document.getElementById('predChart').getContext('2d'),{
+  type:'line',
+  data:{labels:genDates(30),datasets:[{label:'Kurs',data:price30,borderColor:'#475569',borderWidth:1.5,pointRadius:5,pointBackgroundColor:ptColors,pointBorderColor:ptColors,fill:false,tension:.2}]},
+  options:{responsive:true,interaction:{mode:'index',intersect:false},plugins:{legend:{display:false},tooltip:{callbacks:{afterLabel:c=>{const p=pred30[c.dataIndex];return p===1?'↑ Vorhersage: Steigt':'↓ Vorhersage: Fällt'}}}},scales:{x:{ticks:{maxTicksLimit:6,font:{size:11}},grid:{display:false}},y:{ticks:{font:{size:11}},grid:{color:'rgba(0,0,0,0.05)'}}}}
+});
+</script>
+</body>
+</html>
