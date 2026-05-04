@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/vis-network@9.1.9/standalone/umd/vis-network.min.js"></script>
 <style>
   :root {
     --blue:    #2563eb;
@@ -92,6 +93,14 @@
   input[type=range] { accent-color: var(--blue); }
   .signal-up   { display:inline-block; width:10px; height:10px; border-radius:50%; background:var(--green); }
   .signal-down { display:inline-block; width:10px; height:10px; border-radius:50%; background:var(--red); }
+
+  /* ── Netzwerk ── */
+  #networkCanvas { width:100%; height:360px; border-radius:10px; border:1px solid var(--border); background:#fff; }
+  .net-legend { display:flex; flex-wrap:wrap; gap:14px; font-size:.78rem; color:var(--muted); }
+  .net-legend span { display:flex; align-items:center; gap:5px; }
+  .dot-green  { width:12px; height:12px; border-radius:50%; background:#16a34a; flex-shrink:0; }
+  .dot-red    { width:12px; height:12px; border-radius:50%; background:#dc2626; flex-shrink:0; }
+  .dot-gray   { width:12px; height:12px; border-radius:50%; background:#94a3b8; flex-shrink:0; }
 
   @media (max-width:576px) {
     .step-label { display:none; }
@@ -295,6 +304,23 @@
         <i class="fas fa-list-ol me-2 text-primary"></i>Gefundene Entscheidungsregeln
       </h6>
       <div id="rulesContainer" class="mb-4"></div>
+
+      <!-- Netzwerkanalyse -->
+      <h6 class="fw-bold mb-2 mt-2">
+        <i class="fas fa-diagram-project me-2" style="color:var(--purple);"></i>Merkmals-Netzwerk
+      </h6>
+      <p class="small text-muted mb-2">
+        Knoten = Merkmale (Größe: Häufigkeit in Regeln · Farbe: <span style="color:#16a34a;font-weight:600;">grün = überwiegend Steigt</span> / <span style="color:#dc2626;font-weight:600;">rot = überwiegend Fällt</span>).
+        Kanten verbinden Merkmale, die gemeinsam in einer Regel auftreten (Stärke = Häufigkeit).
+      </p>
+      <div id="networkCanvas"></div>
+      <div class="net-legend mt-2 mb-4">
+        <span><span class="dot-green"></span>Merkmal → Steigt</span>
+        <span><span class="dot-red"></span>Merkmal → Fällt</span>
+        <span><span class="dot-gray"></span>Neutral / ungenutzt</span>
+        <span><i class="fas fa-minus me-1" style="color:#94a3b8;"></i>schwache Kookkurrenz</span>
+        <span><i class="fas fa-minus me-1" style="color:#374151;"></i>starke Kookkurrenz</span>
+      </div>
 
       <!-- Vorhersage -->
       <h6 class="fw-bold mb-2">
@@ -627,6 +653,61 @@ function showResults(d) {
   }
 
   activateStep3();
+  renderNetwork(currentJobId);
+}
+
+/* ──────────────────────────────────────────
+   Schritt 3: Merkmals-Netzwerk
+────────────────────────────────────────── */
+let _visNetwork = null;
+
+async function renderNetwork(jobId) {
+  const container = document.getElementById('networkCanvas');
+  container.innerHTML = '<div class="text-center py-5 text-muted"><div class="spinner-border spinner-border-sm me-2"></div>Analysiere Regelwerk…</div>';
+
+  try {
+    const res  = await fetch(`/api/network/${jobId}`);
+    const data = await res.json();
+    if (!res.ok || data.fehler) { container.innerHTML = '<p class="text-muted small p-3">Netzwerk nicht verfügbar.</p>'; return; }
+
+    const maxCount = Math.max(...data.nodes.map(n => n.count), 1);
+    const maxEdge  = Math.max(...data.edges.map(e => e.weight), 1);
+
+    const visNodes = new vis.DataSet(data.nodes.map(n => ({
+      id:    n.id,
+      label: n.name,
+      value: n.count,
+      size:  18 + (n.count / maxCount) * 22,
+      color: {
+        background: n.up_ratio > 0.55 ? '#dcfce7' : n.up_ratio < 0.45 ? '#fee2e2' : '#f1f5f9',
+        border:     n.up_ratio > 0.55 ? '#16a34a' : n.up_ratio < 0.45 ? '#dc2626' : '#94a3b8',
+        highlight:  { background: '#eff6ff', border: '#2563eb' },
+      },
+      font:  { size: 12, color: '#1e293b', face: 'Segoe UI, system-ui, sans-serif' },
+      title: `<b>${n.name}</b><br>Auftritte in Regeln: ${n.count}<br>Steigt-Anteil: ${Math.round(n.up_ratio * 100)} %`,
+      borderWidth: 2,
+    })));
+
+    const visEdges = new vis.DataSet(data.edges.map((e, i) => ({
+      id:    i,
+      from:  e.source,
+      to:    e.target,
+      width: 1 + (e.weight / maxEdge) * 4,
+      color: { color: `rgba(71,85,105,${0.2 + (e.weight / maxEdge) * 0.7})`, highlight: '#2563eb' },
+      title: `Gemeinsam in ${e.weight} Regel${e.weight !== 1 ? 'n' : ''}`,
+    })));
+
+    if (_visNetwork) _visNetwork.destroy();
+    container.innerHTML = '';
+    _visNetwork = new vis.Network(container, { nodes: visNodes, edges: visEdges }, {
+      physics: { solver: 'forceAtlas2Based', stabilization: { iterations: 120 } },
+      interaction: { hover: true, tooltipDelay: 150 },
+      nodes: { shape: 'ellipse', borderWidthSelected: 3 },
+      edges: { smooth: { type: 'dynamic' } },
+    });
+  } catch (e) {
+    container.innerHTML = '<p class="text-muted small p-3">Netzwerk konnte nicht geladen werden.</p>';
+  }
 }
 
 /* ──────────────────────────────────────────
