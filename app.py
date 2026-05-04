@@ -192,6 +192,52 @@ def api_progress(job_id):
     )
 
 
+@app.route('/api/network/<job_id>')
+def api_network(job_id):
+    job = _jobs.get(job_id)
+    if not job or job['status'] != 'done':
+        return jsonify({'fehler': 'Modell nicht bereit.'}), 400
+
+    clf   = job['clf']
+    rules = clf.best_model.rules
+    n     = clf._n_features
+    names = clf.feature_names
+
+    node_count = [0] * n
+    class_up   = [0] * n
+    edge_count = [[0] * n for _ in range(n)]
+
+    for rule in rules:
+        feats = list({f for f, _, _ in rule.conditions})
+        for f in feats:
+            node_count[f] += 1
+            if rule.label == 1:
+                class_up[f] += 1
+        for i in range(len(feats)):
+            for j in range(i + 1, len(feats)):
+                edge_count[feats[i]][feats[j]] += 1
+                edge_count[feats[j]][feats[i]] += 1
+
+    nodes = [
+        {
+            'id':       i,
+            'name':     names[i],
+            'count':    node_count[i],
+            'up_ratio': round(class_up[i] / node_count[i], 2) if node_count[i] else 0.5,
+        }
+        for i in range(n) if node_count[i] > 0
+    ]
+
+    edges = [
+        {'source': i, 'target': j, 'weight': edge_count[i][j]}
+        for i in range(n)
+        for j in range(i + 1, n)
+        if edge_count[i][j] > 0
+    ]
+
+    return jsonify({'nodes': nodes, 'edges': edges, 'n_regeln': len(rules)})
+
+
 @app.route('/api/vorhersage/<job_id>')
 def api_vorhersage(job_id):
     job = _jobs.get(job_id)
